@@ -1,0 +1,8 @@
+android-api18/*.iml
+android-api18/.gradle
+android-api18/local.properties
+android-api18/.idea/workspace.xml
+android-api18/.idea/libraries
+android-api18/build
+android-api18/captures
+android-api18/.externalNativeBuild

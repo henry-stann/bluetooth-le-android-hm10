@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingLeft="8dp"
+    android:paddingRight="8dp">
+
+    <!--Include custom app bar-->
+    <include
+        android:id="@+id/app_bar_list_of_scans"
+        layout="@layout/app_bar_list_of_scans" />
+
+    <!--This is the list view -->
+    <ListView
+        android:id="@+id/myList"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="#00FF00"
+        android:drawSelectorOnTop="false" />
+
+    <!--This happens if there is no data found-->
+    <!--<TextView android:id="@android:id/empty"-->
+    <!--android:layout_width="match_parent"-->
+    <!--android:layout_height="match_parent"-->
+    <!--android:background="#FF0000"-->
+    <!--android:text="No data"/>-->
+</LinearLayout>

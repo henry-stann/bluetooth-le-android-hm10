@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!--Include custom app bar-->
+    <include
+        android:id="@+id/app_bar_hm10_communication"
+        layout="@layout/app_bar_hm10_communication" />
+
+
+
+    <!--Serial Connection-->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="50dp">
+        <TextView
+            android:id="@+id/bluetooth_serial_cxn_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/device_address_label"
+            android:text="@string/bluetooth_serial_cxn_label"
+            android:textSize="18sp"/>
+
+        <TextView
+            android:id="@+id/bluetooth_serial_cxn_value"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/device_address_label"
+            android:layout_toRightOf="@+id/bluetooth_serial_cxn_label"
+            android:textSize="18sp"
+            android:text="@string/no_bluetooth_serial" />
+    </LinearLayout>
+
+
+    <!--Serial write-->
+    <ImageButton
+        android:id="@+id/random_image"
+        android:layout_width="140dp"
+        android:layout_height="210dp"
+        android:layout_below="@+id/bluetooth_serial_cxn_label"
+        android:layout_marginTop="10dp"
+        android:layout_toEndOf="@+id/bluetooth_serial_cxn_label"
+        android:adjustViewBounds="true"
+        android:cropToPadding="true"
+        android:onClick="communication_Button_Click"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_launcher_background" />
+
+</LinearLayout>
