@@ -2,7 +2,7 @@
 
 
 ## Motivation
-You can see, littered around Stack Exchange, comments about how poorly Bluetooth Low Energy is documented for Android Development. I very much agree with a user who said that documentation is written for those who already understand; but very opaque to new users. Most of my learning comes from carefully, carefully walking thru [user Danasf's 2014 GitHub project](https://github.com/danasf/hm10-android-arduino), trips to [Android's official documention](https://developer.android.com/guide/topics/connectivity/bluetooth-le), and any glimmer I could find on Stack Exchange. 
+You can see, littered around Stack Exchange, comments about how poorly Bluetooth Low Energy is documented for Android Development. I very much agree with a user who said that documentation is written for those who already understand; it seems very opaque to new users. Most of my learning comes from carefully walking thru [user Danasf's 2014 GitHub project](https://github.com/danasf/hm10-android-arduino), trips to [Android's official documention](https://developer.android.com/guide/topics/connectivity/bluetooth-le), and pearls of wisdom found on Stack Exchange. 
 
 I wish to point you towards writer Shahar Avigezer's September 2017 [Medium article](https://medium.com/@avigezerit/bluetooth-low-energy-on-android-22bc7310387a) if you wish to learn more on Android development for Bluetooth Low Energy. The source code for that, though, does not appear to be on her GitHub yet. 
 
