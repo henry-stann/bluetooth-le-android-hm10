@@ -275,8 +275,18 @@ private final BluetoothGattCallback m_gattCallback =
 
 
 
+## Troubleshooting
+If you are as new to Android development as I was a year ago, and you do anything less than perfectly, chances are you will run into some bizarre errors. Before you try to research the error and drive yourself crazy, please,
+
+ - Invalidate Cache and Restart (a menu option)
+ - Sync Gradle with Project (probably on the toolbar)
+ - delete the build folder/ and .gradle/ (NOT gradle/!) folder while running Android IDE and re-build
+ - Clean project (menu item)
 
 
+Your specific Android Studio IDE version will most likely have these in separate places. These four tips help to reboot the IDE so that everything the IDE does automagically can be redone. Many errors are because this automagic process was corrupted, and there is nothing you want to change to get rid of the error. 
+
+Keep in mind that I use Android Studio. The file structure is different for Eclipse projects, and I am not versed in how to port to that format. 
 
 
 
