@@ -6,7 +6,7 @@ You can see, littered around Stack Exchange, comments about how poorly Bluetooth
 
 I wish to point you towards writer Shahar Avigezer's September 2017 [Medium article](https://medium.com/@avigezerit/bluetooth-low-energy-on-android-22bc7310387a) if you wish to learn more on Android development for Bluetooth Low Energy. The source code for that, though, does not appear to be on her GitHub yet. 
 
-The motivation behind this project was to create a bare minimum app, easily readable, to help new users connect to an HM-10. HM-10 being a classic Bluetooth-to-Serial converter chip that you usually place on an Arduino in starter projects. I have included the code that I put on my Arduino Nano in order to make this work, though it is written to place on all Arduinos. 
+The motivation behind this project was to create a bare minimum app, easily readable, to help new users connect to an HM-10 -- HM-10 being a classic Bluetooth-to-Serial converter chip that you usually place on an Arduino in starter projects. I have included the code that I put on my Arduino Nano in order to make this work, though it is written to place on all Arduinos. 
 
 The source code (which will eventually have documentation in it) is very chaotic. Below, I attempt to give you the proper `flow` of the bluetooth permission granting, scanning, connection, and communication events which you need to create a bluetooth low evergy app. 
 
@@ -16,24 +16,26 @@ An additional motivation was for me to create a minimally-viable bluetooth low e
 
 1.	Declare necessary Bluetooth permissions in Manifest
 > <uses-permission android:name="android.permission.BLUETOOTH" />
-> <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+     > <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 > <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED" />
 
 
 2.	Declare necessary location permissions in Manifest
-> <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-> <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+```
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+```
 3. Optional: Declare BLE hardware use in Manifest
-
-> <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
-
-This is how I read Adroid's [documentation on features](https://developer.android.com/guide/topics/manifest/uses-feature-element). If you are just using this code for your senior project, and the APK is downloaded straight from your computer, this line means nothing. I think the Google Play Store reads this line to not allow phones to download which do not contain BLE hardware. 
+```
+<uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+```
+This is how I read Adroid's [documentation on features](https://developer.android.com/guide/topics/manifest/uses-feature-element): if you are just using this code for your senior project, and the APK is downloaded straight from your computer, declaring BLE hardware use in Manifest means nothing. I think the Google Play Store reads this line to not prevent phones without BLE hardware from downloading the app.
 
 ## Grab Permissions at Runtime
 1.	Check BLE Hardware:
 
-Some phones may not have BLE hardware on them, mainly those phones before Android SDK 4.3 / API 18 / 2013. Jellybean is SDK 4.1-4.3, so some Jellybeans support it.  In this case I choose to close my app, alerting the user that they cannot use it. I put this on the OnCreate() of the initial activity. A note on why you may see `sdk = 18` instead of 4.3: Android Studio automagically converts the API level to the sdk. 
+Some phones may not have BLE hardware on them, mainly those phones before Android SDK 4.3 / API 18 / 2013. Jellybean is SDK 4.1-4.3, so some Jellybeans support it.  In this case, I choose to close my app, alerting the user that they cannot use it. I put this on the OnCreate() of the initial activity. Note that you might see `sdk = 18`, where 18 is the API level corresponding to the 4.3 sdk version. Android Studio automagically converts the API level to the sdk version here. 
 
 ```
 if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE))
@@ -45,7 +47,7 @@ if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE))
 
 2.	Check BLE permissions
 
-Good convention is to check if you have permissions before using them. What is necessary with permissions gets pretty confusing with needing to configure it for what API the phone is running as well as what API you use to compile.  I use `targetSdkVersion 26` to compile at that level, as written in the gradle file. I use a Phoenix 3 LG phone, running API 24. See [official documentation](https://developer.android.com/guide/topics/permissions/overview) for more information on permissions. 
+Good convention is to check if you have permissions before using them. It is pretty confusing to write out what is necessary with permissions, because it depends on what API level the phone is running as well as what API you use to compile. Please see [official documentation](https://developer.android.com/guide/topics/permissions/overview) for more information on permissions. I use `targetSdkVersion 26` to compile at that level, as written in the gradle file. I use a Phoenix 3 LG phone, running API 24.  
 
 Please note that the commented out code has not been tested to work, but I believe this is how you prompt the user to turn on their Bluetooth. 
 
@@ -78,41 +80,10 @@ boolean permissionGranted = ActivityCompat.checkSelfPermission(context,
         Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
 ```
 
-
-
-## BLE Guide that I am converting into Markdown Formatting
-
-In my app I use AppCompat Activities/Toolbars (v7)/Listview because I think that is easiest; your milage may vary.
-
-## Scan for BLE Devices
-1.	Get your Bluetooth adapter
-final BluetoothManager bluetoothManager =
-        (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
-bleAdapter = bluetoothManager.getAdapter();
-
-2.	Run scan
-
-final BluetoothAdapter.LeScanCallback caller = callback;
-if (enable) {
-    bleHandler.postDelayed(new Runnable() {
-        @Override
-        public void run() {
-            bleScanner = false;
-            bleAdapter.stopLeScan(caller);
-        }
-    }, BLE_SCAN_PERIOD);
-
-    bleScanner = true;
-    bleAdapter.startLeScan(caller);
-} else {
-    bleScanner = false;
-    bleAdapter.stopLeScan(caller);
-}
-
-
-## Scan Callback
+## Create a Scan Callback 
+We need to pass a BluetoothAdapter.LeScanCallback object to BluetoothAdapter.startLeScan to do anything with the devices found in a scan. Each device found during a scan will trigger LeScanCallback's `onLeScan` method, which I override to add that device to the list on the UI. The variable `adapter` is of a custom class derived from ArrayAdapter used to adapt devices to that list. I use this to leverage the Listview paradigm. I use this paradigm because I think it is easiest way to create dynamic lists; your milage may vary. The code also makes use of the AppCompat Activities/Toolbars (v7) paradigm, which I think is the easiest way to have a consistent toolbar at the top of each page/activity; your milage may, again, vary. Be sure to run the code that changes the Listview on the UI Thread to show changes to the user. 
 ```
-public BluetoothAdapter.LeScanCallback mLeScanCallback =
+public BluetoothAdapter.LeScanCallback mLeScanCallback = // will put this into a final variable before use
         new BluetoothAdapter.LeScanCallback() {
             @Override
             public void onLeScan(final BluetoothDevice device, final int rssi,
@@ -127,6 +98,32 @@ public BluetoothAdapter.LeScanCallback mLeScanCallback =
             }
         };
 ```
+
+## Scan for BLE Devices
+1.	Get your Bluetooth adapter
+```
+final BluetoothManager bluetoothManager =
+        (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+bleAdapter = bluetoothManager.getAdapter();
+```
+2.	Run scan
+```
+public static final long BLE_SCAN_PERIOD = 2000;
+public static Handler bleHandler = new Handler(); // we will use a handler to stop the scan after a period of time, here 2 seconds
+private final BluetoothAdapter.LeScanCallback callback = mLeScanCallback; // need to put the callback from before into a final variable
+    bleHandler.postDelayed(new Runnable() {
+        @Override
+        public void run() {
+            bleScanner = false;
+            bleAdapter.stopLeScan(callback);
+        }
+    }, BLE_SCAN_PERIOD);
+
+    bleScanner = true;
+    bleAdapter.startLeScan(callback);
+```
+
+## BLE Guide that I am converting into Markdown Formatting
 
 ## Connect to BLE Devices
 1.	Get your Bluetooth adapter
@@ -280,7 +277,7 @@ If you are as new to Android development as I was a year ago, and you do anythin
 
  - Invalidate Cache and Restart (a menu option)
  - Sync Gradle with Project (probably on the toolbar)
- - delete the build folder/ and .gradle/ (NOT gradle/!) folder while running Android IDE and re-build
+ - delete the folders build/ and .gradle/ (NOT gradle/!) folder while running Android IDE and re-build
  - Clean project (menu item)
 
 
