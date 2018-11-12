@@ -109,8 +109,10 @@ bleAdapter = bluetoothManager.getAdapter();
 2.	Run scan
 ```
 public static final long BLE_SCAN_PERIOD = 2000;
-public static Handler bleHandler = new Handler(); // we will use a handler to stop the scan after a period of time, here 2 seconds
-private final BluetoothAdapter.LeScanCallback callback = mLeScanCallback; // need to put the callback from before into a final variable
+public static Handler bleHandler = new Handler(); 
+// we will use a handler to stop the scan after a period of time, here 2 seconds
+private final BluetoothAdapter.LeScanCallback callback = mLeScanCallback; 
+// need to put the callback from before into a final variable
     bleHandler.postDelayed(new Runnable() {
         @Override
         public void run() {
@@ -142,84 +144,82 @@ BluetoothDevice device = m_bleAdapter.getRemoteDevice(macAddress);
 ```
 // A gatt object is ultimately what you will use to interact with the Bluetooth stack on the HM-10. 
 // All of your send and receive functions will go thru this. 
-// Similar to ble callback, we need to pass a BluetoothGattCallback object to BluetoothDevice.connectGatt
+// Similar to scan callback, we need to pass a BluetoothGattCallback object to BluetoothDevice.connectGatt
 // to do anything much with the gatt Bluetooth stack. 
 m_gattServer = device.connectGatt(m_context,false, m_gattCallback);
 ```
 4.	Discover Services of Gatt object
 ```
-// the gatt callback takes over what to do from here
+// the gatt callback takes over after this
     m_gattServices = gatt.discoverServices();
 ```
 
-
-
-
-
-
-## BLE Guide that I am converting into Markdown Formatting
-
-
-
-
-
-
 ## Gatt Callback
+Similar to scan callback, we need to pass a BluetoothGattCallback object to BluetoothDevice.connectGatt to do anything much with the gatt Bluetooth stack. `Gatt` stands for Generic Attribute Profile, and contains zero or more services. Each service is comprised of zero or more characteristics and zero or more other services. Also, any of the past sentence may actually be "one or more," but I am a bit hazy on this. The serial characteristic is what we are interested. Characteristics are made of zero or more descriptors, but I'm not certain if we worry about descriptors for the HM-10 -- only the characteristic. So, we poll the gatt for all services, and search all services for the serial characteristic hard-coded at "0000ffe1-0000-1000-8000-00805f9b34fb." Godfrey Duke's answer from [this StackExchange](https://stackoverflow.com/questions/18699251/finding-out-android-bluetooth-le-gatt-profiles) explains that BLE characteristics are written in the form 0000XXXX-0000-1000-8000-00805f9b34fb. Thus, when you see in HM-10 documentation that the serial characteristic is "ffe1," it is short-hand. 
+
+We override onServicesDiscovered, to catch the services from BluetoothGatt.discoverServices. When BluetoothGatt.GATT_SUCCESS occurs for each service, we look for the HM-10 serial characteristic. We then use Android's broadcast paradigm to send the fact that the characteristic has or has not been found to UI. Likewise, onConnectionStateChange is overridden and uses the broadcast paradigm to alert the UI about bluetooth connection status. Last, we will override onCharacteristicChanged. If this characterist changes, we assume that the arduino has used serial communication with the HM-10 to change it... sort of. Reading and writing is explained in greater deatil in the next section.
 ```
+// StaticResources.java: 
+// public static String HM10_SERIAL_DATA = "0000ffe1-0000-1000-8000-00805f9b34fb";
+// public final static String BROADCAST_NAME_SERVICES_DISCOVERED = 
+//    "com.example.bluetooth.le.services_discovered";
+// public final static String BROADCAST_NAME_TX_CHARATERISTIC_CHANGED =
+//     UNIQUE_PACKAGE_NAME + "com.example.bluetooth.le.tx_characteristic_changed";
+// public static final String BROADCAST_NAME_CONNECTION_UPDATE =
+//     UNIQUE_PACKAGE_NAME + ".connection_update";
+// public static final String EXTRAS_CONNECTION_STATE = "CONNECTION_STATE";
+// public static final String EXTRAS_SERVICES_DISCOVERED = "SERVICES_DISCOVERED";
+// public static final String EXTRAS_TX_DATA = "TX_DATA";
+
 private final BluetoothGattCallback m_gattCallback =
         new BluetoothGattCallback() {
-
-            @Override
-            public void onConnectionStateChange(BluetoothGatt gatt, int status,
-                                                int newState) {
-                // Status {0 = Success, other = errors}
-                // NewStatus {0 = Disconnected, 1 = Connecting, 2 = Connected}
-                Log.i("onConnectionStateChange",
-                        "Status = " + Integer.toString(status) +
-                                ". New State = " + Integer.toString(newState)
-                );
-                Intent intent = new Intent(StaticResources.BROADCAST_NAME_CONNECTION_UPDATE);
-                if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    intent.putExtra(StaticResources.EXTRAS_CONNECTION_STATE, StaticResources.CONNECTION_STATE_CONNECTED);
-                    DiscoverServicesAfterDelay(gatt);
-
-                }
-                else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                    intent.putExtra(StaticResources.EXTRAS_CONNECTION_STATE, StaticResources.CONNECTION_STATE_DISCONNECTED);
-                }
-                else if (newState == BluetoothProfile.STATE_CONNECTING) {
-                    intent.putExtra(StaticResources.EXTRAS_CONNECTION_STATE, StaticResources.CONNECTION_STATE_CONNECTING);
-                }
-                m_context.sendBroadcast(intent);
-            }
 
 
             @Override
             // New services discovered
             public void onServicesDiscovered(BluetoothGatt gatt, int status) {
                 Intent intent = new Intent(StaticResources.BROADCAST_NAME_SERVICES_DISCOVERED);
-                Log.i("onServicesDiscovered",
-                        "Status = " + Integer.toString(status)
-                );
                 if (status == BluetoothGatt.GATT_SUCCESS)
                 {
                     m_gattServices = gatt.getServices();
                     m_characteristicTX = FindCharacteristic(StaticResources.HM10_SERIAL_DATA, m_gattServices);
-                    String foundSuccess = StaticResources.SERVICES_DISCOVERY_CHARACTERISTIC_FAILURE;
+                    String foundSuccess = "Communication Characteristic Not Found"
                     if (m_characteristicTX != null)
                     {
-                        foundSuccess = StaticResources.SERVICES_DISCOVERY_CHARACTERISTIC_SUCCESS;
+                        foundSuccess = "Communication Characteristic Found";
                     }
                         intent.putExtra(StaticResources.EXTRAS_SERVICES_DISCOVERED,
                                 foundSuccess);
                 }
                 else // Many reasons it could fail to find services
                 {
-                    intent.putExtra(StaticResources.EXTRAS_SERVICES_DISCOVERED,
-                            StaticResources.SERVICES_DISCOVERY_GENERAL_FAILURE);
+                    intent.putExtra("SERVICES_DISCOVERED",
+                            "No Services Found");
                 }
                 m_context.sendBroadcast(intent);
             }
+
+
+            @Override
+            public void onConnectionStateChange(BluetoothGatt gatt, int status,
+                                                int newState) {
+                // status: {0 = Success, other = errors}
+                // newState: {0 = Disconnected, 1 = Connecting, 2 = Connected}
+                Intent intent = new Intent(StaticResources.BROADCAST_NAME_CONNECTION_UPDATE);
+                if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    intent.putExtra(StaticResources.EXTRAS_CONNECTION_STATE, "Connected");
+                    DiscoverServicesAfterDelay(gatt);
+
+                }
+                else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    intent.putExtra(StaticResources.EXTRAS_CONNECTION_STATE, "Disconnected");
+                }
+                else if (newState == BluetoothProfile.STATE_CONNECTING) {
+                    intent.putExtra(StaticResources.EXTRAS_CONNECTION_STATE, "Connecting");
+                }
+                m_context.sendBroadcast(intent);
+            }
+
 
             @Override
             public void onCharacteristicChanged(BluetoothGatt gatt,
@@ -229,8 +229,6 @@ private final BluetoothGattCallback m_gattCallback =
                 Intent intent = new Intent(StaticResources.BROADCAST_NAME_TX_CHARATERISTIC_CHANGED);
                 intent.putExtra(StaticResources.EXTRAS_TX_DATA, txData);
                 m_context.sendBroadcast(intent);
-                Log.i("onCharacteristicChanged",
-                        "TxData = " + txData + ";");
             }
 
         };
@@ -242,10 +240,7 @@ private final BluetoothGattCallback m_gattCallback =
 
 
 
-
-
-
-
+## BLE Guide that I am converting into Markdown Formatting
 
 5.	Get Characteristic from Services
 ```
@@ -264,9 +259,6 @@ for (BluetoothGattService gattService : m_gattServices) {
     }
 }
 ```
-
-
-Gatt is made up of a variable amount of services, each service is made up of a variable amount of characteristics, and each characteristic is made up of a variable amount of descriptors. Because we know we only care about the characteristic  "0000ffe1-0000-1000-8000-00805f9b34fb" from the HM-10 to send and receive info with the Arduino, we can ignore all of the other noise. We loop thru all available services and get the characteristic that we want. While we could write or read other characteristics, THIS characteristic will match the serial communication with the Arduino. 
 
 ## Read from HM-10
 6.	Set up Reading Ability
@@ -294,10 +286,6 @@ if(m_characteristicTX != null)
 }
 
 Setting the value of the characteristic changes your local copy (Android). Need to write it to the peripheral (HM-10). Think of the characteristic as one big key, and your value as a key-value. The key allows writing to target the characteristic among the hierarchy of uuids that comprise service/characteristic/descriptor hierarchy. This is the same reason we needed to write the CCCD for readability. 
-
-
-
-
 
 ## Troubleshooting
 If you are as new to Android development as I was a year ago, and you do anything less than perfectly, chances are you will run into some bizarre errors. Before you try to research the error and drive yourself crazy, please,
