@@ -157,7 +157,6 @@ m_gattServer = device.connectGatt(m_context,false, m_gattCallback);
 ## Gatt Callback
 Similar to scan callback, we need to pass a BluetoothGattCallback object to BluetoothDevice.connectGatt to do anything much with the gatt Bluetooth stack. `Gatt` stands for Generic Attribute Profile, and contains zero or more services. Each service is comprised of zero or more characteristics and zero or more other services. Also, any of the past sentence may actually be "one or more," but I am a bit hazy on this. The serial characteristic is what we are interested. Characteristics are made of zero or more descriptors, but I'm not certain if we worry about descriptors for the HM-10 -- only the characteristic. So, we poll the gatt for all services, and search all services for the serial characteristic hard-coded at "0000ffe1-0000-1000-8000-00805f9b34fb." Godfrey Duke's answer from [this StackExchange](https://stackoverflow.com/questions/18699251/finding-out-android-bluetooth-le-gatt-profiles) explains that BLE characteristics are written in the form 0000XXXX-0000-1000-8000-00805f9b34fb. Thus, when you see in HM-10 documentation that the serial characteristic is "ffe1," it is short-hand. 
 
-We override onServicesDiscovered, to catch the services from BluetoothGatt.discoverServices. When BluetoothGatt.GATT_SUCCESS occurs for each service, we look for the HM-10 serial characteristic. We then use Android's broadcast paradigm to send the fact that the characteristic has or has not been found to UI. Likewise, onConnectionStateChange is overridden and uses the broadcast paradigm to alert the UI about bluetooth connection status. Last, we will override onCharacteristicChanged. If this characterist changes, we assume that the arduino has used serial communication with the HM-10 to change it... sort of. Reading and writing is explained in greater deatil in the next section.
 ```
 // StaticResources.java: 
 // public static String HM10_SERIAL_DATA = "0000ffe1-0000-1000-8000-00805f9b34fb";
@@ -171,6 +170,11 @@ We override onServicesDiscovered, to catch the services from BluetoothGatt.disco
 // public static final String EXTRAS_SERVICES_DISCOVERED = "SERVICES_DISCOVERED";
 // public static final String EXTRAS_TX_DATA = "TX_DATA";
 
+// This file variables:
+List<BluetoothGattService> m_gattServices;
+BluetoothGattCharacteristic m_characteristicTX;
+// private Context m_context = calling activity context ('this' keyword);
+
 private final BluetoothGattCallback m_gattCallback =
         new BluetoothGattCallback() {
 
@@ -182,23 +186,35 @@ private final BluetoothGattCallback m_gattCallback =
                 if (status == BluetoothGatt.GATT_SUCCESS)
                 {
                     m_gattServices = gatt.getServices();
-                    m_characteristicTX = FindCharacteristic(StaticResources.HM10_SERIAL_DATA, m_gattServices);
+                    final UUID desiredUuid = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
                     String foundSuccess = "Communication Characteristic Not Found"
+                    for (BluetoothGattService gattService : m_gattServices) {
+                        BluetoothGattCharacteristic desiredCharacteristic = gattService.getCharacteristic(
+                            desiredUuid);
+                        if(desiredCharacteristic !=null)
+                        {
+                            m_characteristicTX = desiredCharacteristic;
+                            break;
+                        }
+                    }
                     if (m_characteristicTX != null)
                     {
                         foundSuccess = "Communication Characteristic Found";
                     }
-                        intent.putExtra(StaticResources.EXTRAS_SERVICES_DISCOVERED,
-                                foundSuccess);
+                    intent.putExtra(StaticResources.EXTRAS_SERVICES_DISCOVERED, foundSuccess);
                 }
                 else // Many reasons it could fail to find services
                 {
-                    intent.putExtra("SERVICES_DISCOVERED",
-                            "No Services Found");
+                    intent.putExtra("SERVICES_DISCOVERED", "No Services Found");
                 }
                 m_context.sendBroadcast(intent);
             }
 
+```
+
+We override onServicesDiscovered, to catch the services from BluetoothGatt.discoverServices. When BluetoothGatt.GATT_SUCCESS occurs for each service, we look for the HM-10 serial characteristic. We then use Android's broadcast paradigm to send the fact that the characteristic has or has not been found to UI. Likewise, onConnectionStateChange is overridden and uses the broadcast paradigm to alert the UI about bluetooth connection status. Last, we will override onCharacteristicChanged. If this characterist changes, we assume that the arduino has used serial communication with the HM-10 to change it... sort of. Reading and writing is explained in greater deatil in the next section.
+
+```
 
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status,
@@ -246,17 +262,7 @@ private final BluetoothGattCallback m_gattCallback =
 ```
 // Need to wait until services become populated from previous step
     m_gattServices = gatt.getServices();
-    m_characteristicTX = FindCharacteristic
-
-final UUID desiredUuid = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
-for (BluetoothGattService gattService : m_gattServices) {
-    BluetoothGattCharacteristic desiredCharacteristic = gattService.getCharacteristic(
-            desiredUuid);
-    if(desiredCharacteristic !=null)
-    {
-        m_characteristicTX = desiredCharacteristic;
-        break;
-    }
+    
 }
 ```
 
