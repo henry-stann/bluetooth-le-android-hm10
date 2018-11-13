@@ -258,16 +258,8 @@ We override onServicesDiscovered, to catch the services from BluetoothGatt.disco
 
 ## BLE Guide that I am converting into Markdown Formatting
 
-5.	Get Characteristic from Services
-```
-// Need to wait until services become populated from previous step
-    m_gattServices = gatt.getServices();
-    
-}
-```
-
 ## Read from HM-10
-6.	Set up Reading Ability
+Set up Reading Ability
 ```
 m_gattServer.setCharacteristicNotification(characteristic, true);
 // Enable the local machine to watch changes to this characteristic
@@ -282,7 +274,7 @@ In order to set up reading, we need to set up both the local (Android) and perip
 
 7.	Act on new values
 ```
-/// See onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) in BluetoothGattCallback m_gattCallback
+// See onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) in BluetoothGattCallback m_gattCallback
 ```
 ## Write to HM-10
 8.	Write to a characteristic
