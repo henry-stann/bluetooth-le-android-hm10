@@ -159,7 +159,10 @@ Similar to scan callback, we need to pass a BluetoothGattCallback object to Blue
 
 ```
 // StaticResources.java: 
-// public static String HM10_SERIAL_DATA = "0000ffe1-0000-1000-8000-00805f9b34fb";
+// public static String HM10_SERIAL_DATA = 
+//    "0000ffe1-0000-1000-8000-00805f9b34fb";
+// public static String CLIENT_CHARACTERISTIC_CONFIGURATION_DESCRIPTOR =
+//    "00002902-0000-1000-8000-00805f9b34fb";
 // public final static String BROADCAST_NAME_SERVICES_DISCOVERED = 
 //    "com.example.bluetooth.le.services_discovered";
 // public final static String BROADCAST_NAME_TX_CHARATERISTIC_CHANGED =
@@ -194,6 +197,12 @@ private final BluetoothGattCallback m_gattCallback =
                         if(desiredCharacteristic !=null)
                         {
                             m_characteristicTX = desiredCharacteristic;
+                            m_gattServer.setCharacteristicNotification(characteristic, true);
+                            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
+                                UUID.fromString(StaticResources.CLIENT_CHARACTERISTIC_CONFIGURATION_DESCRIPTOR));
+            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+            m_gattServer.writeDescriptor(descriptor);
+
                             break;
                         }
                     }
@@ -212,7 +221,9 @@ private final BluetoothGattCallback m_gattCallback =
 
 ```
 
-We override onServicesDiscovered, to catch the services from BluetoothGatt.discoverServices. When BluetoothGatt.GATT_SUCCESS occurs for each service, we look for the HM-10 serial characteristic. We then use Android's broadcast paradigm to send the fact that the characteristic has or has not been found to UI. Likewise, onConnectionStateChange is overridden and uses the broadcast paradigm to alert the UI about bluetooth connection status. Last, we will override onCharacteristicChanged. If this characterist changes, we assume that the arduino has used serial communication with the HM-10 to change it... sort of. Reading and writing is explained in greater deatil in the next section.
+We override onServicesDiscovered, to catch the services from BluetoothGatt.discoverServices. When BluetoothGatt.GATT_SUCCESS occurs for each service, we look for the HM-10 serial characteristic. We then use Android's broadcast paradigm to send the fact that the characteristic has or has not been found to UI. We will go over the descriptor and ENABLE_NOTIFICATION_VALUE in section 'Read from HM-10.'
+
+Likewise onServicesDiscovered, onConnectionStateChange is overridden and uses the broadcast paradigm to alert the UI about bluetooth connection status. Last, we will override onCharacteristicChanged. We will talk more about this in section 'Read from HM-10.' 
 
 ```
 
@@ -256,28 +267,8 @@ We override onServicesDiscovered, to catch the services from BluetoothGatt.disco
 
 
 
-## BLE Guide that I am converting into Markdown Formatting
-
-## Read from HM-10
-Set up Reading Ability
-```
-m_gattServer.setCharacteristicNotification(characteristic, true);
-// Enable the local machine to watch changes to this characteristic
-// Then, change the peripheral to notify observers of changes in its payload. 
-    BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
-            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"));
-    descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-    m_gattServer.writeDescriptor(descriptor);
-```
-Do not think about Bluetooth in terms of a serial port, where you send data in a buffer and read that when you are ready (say by reading if any available data on a 0.1 second continuous loop). Think rather that Bluetooth an only notify an observer of a new value change. There probably is a way to read current value, but that is beyond my knowledge.  
-In order to set up reading, we need to set up both the local (Android) and peripheral (HM-10). The call to setCharacteristicNotification  makes the local an observer in changes to this characteristic. Next, we configure the peripheral. Remember that each characteristic has a variable amount of descriptors? Well, "00002902-0000-1000-8000-00805f9b34fb" is called the Client Characteristic Configuration Descriptor (CCCD). Setting this to BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE means that it notifies clients/observers of a change in payload. Finally, we need to the characteristic to have an effect.  
-
-7.	Act on new values
-```
-// See onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) in BluetoothGattCallback m_gattCallback
-```
 ## Write to HM-10
-8.	Write to a characteristic
+I use a button click to initiate code to write some text to my local copy of the gatt stack. I then use BluetoothGatt.writeCharacteristic to write my local copy of the characteristic to the HM-10. This allows us to think of gatt (Generic Attribute Protocol) as a map with keys (services, characteristics, and descriptors), and values. 
 ```
 if(m_characteristicTX != null)
 {
@@ -286,7 +277,41 @@ if(m_characteristicTX != null)
     m_gattServer.writeCharacteristic(m_characteristicTX);
 }
 ```
-Setting the value of the characteristic changes your local copy (Android). Need to write it to the peripheral (HM-10). Think of the characteristic as one big key, and your value as a key-value. The key allows writing to target the characteristic among the hierarchy of uuids that comprise service/characteristic/descriptor hierarchy. This is the same reason we needed to write the CCCD for readability. 
+ 
+
+## Read from HM-10
+
+We overrode BluetoothGattCallback.onCharacteristicChanged with code the reads the copy of the gatt stack -- and specifically the desired characteristic -- from the HM-10. See that parameter of the BluetoothGatt? Yep -- it is not the local copy. This is much different than how software handles serial ports, where the COM port is in a fixed spot and we just read the buffer. Rather, we wait for the gatt stack to come in electromagnetic particles to come on the 2.4 GHz radio frequency from the HM-10, and then we sort through the stack to find our desired characteristic. I think the HM-10 still has the 'stale data' until new data is written over it; it is not like a serial port because the act of the Android reading it will not clear out stale data. 
+```
+  @Override
+            public void onCharacteristicChanged(BluetoothGatt gatt,
+                                                BluetoothGattCharacteristic characteristic) {
+                byte[] rawData = characteristic.getValue();
+                String txData = new String(rawData).trim(); // toString does not work, but new String()
+                ...
+            }
+```
+
+We read values with BluetoothGattCallback.onCharacteristicChanged, but we also need to set up how to trigger that function. Remember that each characteristic has a variable amount of descriptors. The descriptor at "00002902-0000-1000-8000-00805f9b34fb" is called the Client Characteristic Configuration Descriptor (CCCD). Setting this to BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE means that it sends electromagnetic particles at 2.4 GHz of the gatt stack when the characteristic changes, or at least something to that effect. Then, the Android's onCharacteristicChanged can take effect. For more information on descriptors and what the value of ENABLE_NOTIFICATION_VALUE means, please see the (official documentation)[https://developer.android.com/reference/android/bluetooth/BluetoothGattDescriptor]. The line m_gattServer.writeDescriptor(descriptor) is just like writing a characteristic -- we change have changed our local copy, and this tells Android to send our local copy over 2.4 GHz radio frequency to the HM-10. 
+
+```
+  @Override
+  public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+                ...
+                        if(desiredCharacteristic !=null)
+                        {
+                            m_characteristicTX = desiredCharacteristic;
+                            m_gattServer.setCharacteristicNotification(characteristic, true);
+                            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
+                            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
+                            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"));
+                            m_gattServer.writeDescriptor(descriptor);
+                            break;
+                        }
+                    ...
+            }
+```
+
 
 ## Troubleshooting
 If you are as new to Android development as I was a year ago, and you do anything less than perfectly, chances are you will run into some bizarre errors. Before you try to research the error and drive yourself crazy, please,
@@ -301,6 +326,8 @@ Your specific Android Studio IDE version will most likely have these in separate
 
 Keep in mind that I use Android Studio. The file structure is different for Eclipse projects, and I am not versed in how to port to that format. 
 
+## Challenge for You
+Does your Android or the HM-10 act as the 'central' or 'peripheral?' Does your HM-10 act as the 'server' or the 'client?' How do 'master' and 'slave' relate to the four terms I have just given you? I have honestly forgot the answers -- I got bluetooth to work, and do not need to remember. The answer are not as intuitive as you think, because the HM-10 documentation says it can act as a server or a client!
 
 
 
